@@ -9,8 +9,14 @@ class UserProvider extends Component {
 
   componentDidMount = () => {
     auth.onAuthStateChanged(userAuth => {
-      this.setState({ user: userAuth});
+      this.setState({ user: userAuth });
+      if (userAuth) {
+        // console.log(userAuth);
+        console.log(userAuth.uid);
+      }
+
     });
+
   };
   render() {
     return (
@@ -20,4 +26,4 @@ class UserProvider extends Component {
     );
   }
 }
-export {UserContext, UserProvider};
+export { UserContext, UserProvider };
