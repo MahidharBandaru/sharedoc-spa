@@ -128,10 +128,13 @@ class Editor extends Component {
         this.setState({
             value: newValue
         });
+        if(this.state.deltas) return;
+        const docRef = firestore.ref('doc/');
+        docRef.set({text: newValue, uid: this.state.user});
         // let doc = Automerge.change(this.state.doc, `change by ${this.state.user}`, (currDoc) => {
         //     currDoc.text = new Automerge.Text(newValue);
         // });
-        // this.setState({ 
+        // this.setState({
         //     doc: doc
         // });
 
@@ -176,7 +179,7 @@ class Editor extends Component {
             fontSize: parseInt(e.target.value, 10)
         });
     }
-    
+
     onChangeHandler = (event) => {
         const { name, value } = event.currentTarget;
 
@@ -203,6 +206,7 @@ class Editor extends Component {
             newTodo: "",
             user: props.user,
             initialRender: false,
+            deltas: false,
             // doc:
         };
         this.setPlaceholder = this.setPlaceholder.bind(this);
@@ -215,39 +219,51 @@ class Editor extends Component {
         this.editorref = React.createRef();
     }
     componentDidMount = () => {
-        const  changesRef = firestore.ref('changes/');
-        let that = this;        
-        changesRef.once('value').then(function(snapshot) {
-            console.log(snapshot.val());
-            that.setState({initialRender: true});
+        const  docRef = firestore.ref('doc/');
+        let that = this;
+        docRef.once('value').then(function(snapshot) {
+            // console.log(snapshot.val());
+            if(!snapshot.val()) {
+              docRef.set({
+                text: "",
+                uid: that.state.user
+              });
+              console.log("here");
+              return;
+            }
+            that.setState({deltas: true});
+            that.setState({value: (snapshot.val() ? snapshot.val().text : "")});
+            that.setState({deltas: false});
+
 
         });
 
         const editor = this.editorref.current.editor;
 
         // push changes
-        var deltas = false;
-        editor.on('change', function (obj) {
-            if(deltas) return;
-            console.log(roughSizeOfObject(obj));
-            const todosRef = firestore.ref('changes/');
-            var newPostRef = todosRef.push();
-            newPostRef.set({obj:obj, uid: that.state.user});
-
-        });
+        // var deltas = false;
+        // editor.on('change', function (obj) {
+        //     if(deltas) return;
+        //     console.log(roughSizeOfObject(obj));
+        //     const todosRef = firestore.ref('doc/');
+        //     var newPostRef = todosRef.push();
+        //     newPostRef.set({obj:obj, uid: that.state.user});
+        //
+        // });
 
         // pull changes
-        
-        changesRef.on('child_added', data => {
-            
+
+        docRef.on('value', data => {
+
             // console.log(data.val());
             const val = data.val();
             if(val.uid === this.state.user) return;
 
-            deltas = true;
-            let obj = val.obj;
-            editor.getSession().getDocument().applyDeltas([val.obj]);
-            deltas = false;
+            that.setState({deltas: true});
+            let newText = val.text;
+            that.setState({ value: newText});
+            that.setState({deltas: false});
+
 
 
         });
@@ -255,7 +271,7 @@ class Editor extends Component {
     render() {
         return (
             <div>
-                
+
                 <AceEditor
                 mode="java"
                 theme="github"
@@ -271,7 +287,7 @@ class Editor extends Component {
                 }}
             />
             </div>
-            
+
         );
 
     }
