@@ -90,24 +90,6 @@ function roughSizeOfObject(object) {
 // chat
 // todos
 
-const applyDelta = (obj, editor) => {
-    // let obj = JSON.parse (event.data);
-    if (obj.action === 'insert') {
-        let pos = editor.getCursorPosition ();
-        // silent = true;
-        if (obj.lines[0] === '') obj.lines[0] = '\n';
-        editor.session.insert (obj.start, obj.lines[0]);
-        editor.selection.moveToPosition (pos)
-        // silent = false;
-    } else if (obj.action === 'remove') {
-        let pos = editor.getCursorPosition ();
-        // silent = true;
-        editor.session.doc.remove ({start : obj.start, end : obj.end})
-        // silent = false;
-        editor.selection.moveToPosition (pos);
-    }
-}
-
 
 function getMethods(obj) {
     var result = [];
@@ -124,7 +106,7 @@ function getMethods(obj) {
   }
 
   async function getUidFromEmail(email) {
-    userref = firestore.ref('users/' + Id);
+    let userref = firestore.ref('users/' + email);
     let ans = userref.once('value').then(function(snapshot) {
       const val = userref.val();
       if(!val) {
@@ -142,7 +124,7 @@ function getMethods(obj) {
         const val = snapshot.val();
         if(!val) return false;
         return true;
-      }};
+      });
       return ans;
     }
     let uid = getUidFromEmail(Id);
@@ -152,9 +134,53 @@ function getMethods(obj) {
       const val = snapshot.val();
       if(!val) return false;
       return true;
-    }};
+    });
     return ans;
 }
+  async function addCollaborator(docId, uid) {
+    const docref = firestore.ref('doc/' + docId + '/collaborators/' + uid);
+    let ans = docref.once('value').then(function(snapshot) {
+      const val = snapshot.val();
+      if(!val) return false;
+      return true;
+    });
+    if(ans === true) return;
+    firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
+      creator: false,
+    });
+    firestore.ref('users/' + uid + '/otherDocs').set({
+      docId
+    });
+
+
+  }
+
+  async function createNewDoc(docId, uid, title = "") {
+    const  docRef = firestore.ref('doc/' + docId);
+
+    docRef.once('value').then(function(snapshot) {
+        // console.log(snapshot.val());
+        if(snapshot.val()) {
+          return;
+        }
+
+          docRef.set({
+            title: title,
+            text: defaultValue,
+            lastChanged: "",
+            createdBy: uid,
+          });
+          firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
+            creator: true,
+          })
+          firestore.ref('users/' + uid + '/myDocs').set({
+            docId
+          });
+          console.log("new doc created");
+
+
+    });
+  }
 
 class Editor extends Component {
     static contextType = UserContext;
@@ -265,6 +291,7 @@ class Editor extends Component {
         const  docRef = firestore.ref('doc/' + this.props.docId);
         let that = this;
         let uid = this.state.user;
+        let docId = this.props.docId;
         docRef.once('value').then(function(snapshot) {
             // console.log(snapshot.val());
             if(!snapshot.val()) {
@@ -278,8 +305,9 @@ class Editor extends Component {
               firestore.ref('doc/' + that.props.docId + '/collaborators/' + uid).set({
                 creator: true,
               })
-
-              const userDocsRef = firestore.ref(`users/${that.state.user}/docs`);
+              firestore.ref('users/' + uid + '/myDocs').set({
+                docId
+              });
               console.log("new doc created");
               return;
             }
