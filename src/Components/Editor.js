@@ -94,7 +94,6 @@ function roughSizeOfObject(object) {
 // chat
 // todos
 
-
 function getMethods(obj) {
     var result = [];
     for (var id in obj) {

@@ -16,7 +16,7 @@ class UserProvider extends Component {
       if (userAuth) {
         const {uid, displayName, email} = userAuth;
         const userRef = firestore.ref('users/' + uid);
-        const userRefByEmail = firestore.ref('users/' + email);
+        // const userRefByEmail = firestore.ref('users/' + email);
 
         userRef.once('value', function(snapshot) {
           const val = snapshot.val();
@@ -25,9 +25,9 @@ class UserProvider extends Component {
             userRef.set({
               uid, displayName, email
             });
-            userRefByEmail.set({
-               uid, displayName, email
-            });
+            // userRefByEmail.set({
+            //    uid, displayName, email
+            // });
             return;
           }
         });
