@@ -4,7 +4,11 @@ import AceEditor from "react-ace";
 import { firestore } from "./firebase"
 import { UserContext } from "../Providers/UserProvider";
 import "ace-builds/src-noconflict/mode-jsx";
+import {
+  Input
+} from "@chakra-ui/core";
 const Automerge = require('automerge');
+
 
 const languages = [
     "javascript",
@@ -256,6 +260,14 @@ class Editor extends Component {
             this.setState({ newTodo: value });
         }
     };
+    handleTitleChange = event => {
+      this.setState({title: event.target.value});
+      const  docRef = firestore.ref('doc/' + this.props.docId);
+      let updates = {};
+      updates['/title'] = event.target.value;
+      return docRef.update(updates);
+    };
+
     constructor(props) {
         super(props);
         this.state = {
@@ -286,6 +298,7 @@ class Editor extends Component {
         this.setBoolean = this.setBoolean.bind(this);
         this.onChangeHandler = this.onChangeHandler.bind(this);
         this.editorref = React.createRef();
+        this.handleTitleChange = this.handleTitleChange.bind(this);
     }
     componentDidMount = () => {
         const  docRef = firestore.ref('doc/' + this.props.docId);
@@ -354,7 +367,12 @@ class Editor extends Component {
     render() {
         return (
             <div>
-
+                <Input
+                  value={this.state.title}
+                  onChange={this.handleTitleChange}
+                  placeholder="Enter filename here"
+                  size="sm"
+                />
                 <AceEditor
                 mode="java"
                 theme="github"
