@@ -1,9 +1,8 @@
 language: node_js
 node_js:
   - "stable"
-# cache:
-#   directories:
-#   - node_modules
+cache:
+  npm: false
 script:
   - npm test
   - npm run build
