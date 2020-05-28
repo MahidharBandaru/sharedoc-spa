@@ -1,5 +1,5 @@
 import React, { Component, createContext } from "react";
-import { auth } from "../Components/firebase";
+import { auth, firestore } from "../Components/firebase";
 
 const UserContext = createContext({ user: null });
 class UserProvider extends Component {
@@ -8,13 +8,30 @@ class UserProvider extends Component {
   };
 
   componentDidMount = () => {
+    const  docRef = firestore.ref('users/');
+
     auth.onAuthStateChanged(userAuth => {
       this.setState({ user: userAuth });
+      let flag = 0;
       if (userAuth) {
-        // console.log(userAuth);
-        console.log(userAuth.uid);
-      }
+        const {uid, displayName, email} = userAuth;
+        const userRef = firestore.ref('users/' + uid);
+        const userRefByEmail = firestore.ref('users/' + email);
 
+        userRef.once('value', function(snapshot) {
+          const val = snapshot.val();
+          if(!val) {
+            // const newRef = docRef.push();
+            userRef.set({
+              uid, displayName, email
+            });
+            userRefByEmail.set({
+               uid, displayName, email
+            });
+            return;
+          }
+        });
+      }
     });
 
   };

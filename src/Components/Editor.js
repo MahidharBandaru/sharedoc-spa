@@ -48,9 +48,7 @@ themes.forEach(theme => require(`ace-builds/src-noconflict/theme-${theme}`));
 require("ace-builds/src-min-noconflict/ext-searchbox");
 require("ace-builds/src-min-noconflict/ext-language_tools");
 
-const defaultValue = `function onLoad(editor) {
-  console.log("i've loaded");
-}`;
+const defaultValue = ""
 
 function roughSizeOfObject(object) {
 
@@ -85,6 +83,13 @@ function roughSizeOfObject(object) {
     return bytes;
 }
 
+// routing
+// db rules
+// flow
+// editor remodel
+// chat
+// todos
+
 const applyDelta = (obj, editor) => {
     // let obj = JSON.parse (event.data);
     if (obj.action === 'insert') {
@@ -118,6 +123,39 @@ function getMethods(obj) {
     return result;
   }
 
+  async function getUidFromEmail(email) {
+    userref = firestore.ref('users/' + Id);
+    let ans = userref.once('value').then(function(snapshot) {
+      const val = userref.val();
+      if(!val) {
+        console.log("user doesn't exist");
+        return false;
+      }
+      return val.uid;
+    });
+    return ans;
+  }
+  async function haveAccess(docId, Id, email = false) {
+    if(email === false) {
+      const docref = firestore.ref('doc/' + docId + '/collaborators/' + Id);
+      let ans = docref.once('value').then(function(snapshot) {
+        const val = snapshot.val();
+        if(!val) return false;
+        return true;
+      }};
+      return ans;
+    }
+    let uid = getUidFromEmail(Id);
+    if(uid === false) return false;
+    const docref = firestore.ref('doc/' + docId + '/collaborators/' + uid);
+    let ans = docref.once('value').then(function(snapshot) {
+      const val = snapshot.val();
+      if(!val) return false;
+      return true;
+    }};
+    return ans;
+}
+
 class Editor extends Component {
     static contextType = UserContext;
     onLoad() {
@@ -129,8 +167,13 @@ class Editor extends Component {
             value: newValue
         });
         if(this.state.deltas) return;
-        const docRef = firestore.ref('doc/');
-        docRef.set({text: newValue, uid: this.state.user});
+        const docRef = firestore.ref('doc/' + this.props.docId);
+        let updates = {};
+        updates['/text'] = newValue;
+        updates['/lastChanged'] = this.state.user;
+        // docRef.set({text: newValue, lastChanged: this.state.user});
+        return docRef.update(updates);
+
         // let doc = Automerge.change(this.state.doc, `change by ${this.state.user}`, (currDoc) => {
         //     currDoc.text = new Automerge.Text(newValue);
         // });
@@ -189,7 +232,6 @@ class Editor extends Component {
     };
     constructor(props) {
         super(props);
-        console.log(props.user);
         this.state = {
             value: defaultValue,
             placeholder: "Placeholder Text",
@@ -207,6 +249,7 @@ class Editor extends Component {
             user: props.user,
             initialRender: false,
             deltas: false,
+            title: "",
             // doc:
         };
         this.setPlaceholder = this.setPlaceholder.bind(this);
@@ -219,16 +262,25 @@ class Editor extends Component {
         this.editorref = React.createRef();
     }
     componentDidMount = () => {
-        const  docRef = firestore.ref('doc/');
+        const  docRef = firestore.ref('doc/' + this.props.docId);
         let that = this;
+        let uid = this.state.user;
         docRef.once('value').then(function(snapshot) {
             // console.log(snapshot.val());
             if(!snapshot.val()) {
+
               docRef.set({
-                text: "",
-                uid: that.state.user
+                title: "",
+                text: defaultValue,
+                lastChanged: "",
+                createdBy: that.state.user,
               });
-              console.log("here");
+              firestore.ref('doc/' + that.props.docId + '/collaborators/' + uid).set({
+                creator: true,
+              })
+
+              const userDocsRef = firestore.ref(`users/${that.state.user}/docs`);
+              console.log("new doc created");
               return;
             }
             that.setState({deltas: true});
@@ -257,7 +309,10 @@ class Editor extends Component {
 
             // console.log(data.val());
             const val = data.val();
-            if(val.uid === this.state.user) return;
+            if(!val) {
+              return;
+            }
+            if(val.lastChanged === this.state.user) return;
 
             that.setState({deltas: true});
             let newText = val.text;

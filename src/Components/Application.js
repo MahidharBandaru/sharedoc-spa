@@ -7,7 +7,23 @@ import PasswordReset from "./PasswordReset";
 import Editor from "./Editor"
 import Note from "./Note";
 import {UserContext, UserProvider} from "../Providers/UserProvider";
+import Dashboard from "./Dashboard"
+import Nav from "./Nav"
 import '../tailwind.generated.css';
+
+import { ThemeProvider, CSSReset } from '@chakra-ui/core'
+import customTheme from "./theme"
+
+function ThemeApp({ children }) {
+  return (
+    <ThemeProvider theme={customTheme}>
+      <CSSReset />
+      {children}
+    </ThemeProvider>
+  );
+}
+
+
 function Application() {
   const user = useContext(UserContext);
   if(user) {
@@ -15,20 +31,22 @@ function Application() {
   }
   return (
         (user && user.uid) ?
+        <ThemeApp>
+        <Nav />
         <Router>
-          <ProfilePage path="dashboard" />
-          <Editor path="editor" user={user.uid}/>
+          <Dashboard path="/" />
+          <Editor path="editor/:docId" user={user.uid}/>
 
         </Router>
+        </ThemeApp>
       :
+      <ThemeApp>
+
         <Router>
-          <SignUp path="signUp" />
           <SignIn path="/" />
-          <PasswordReset path = "passwordReset" />
-          <Note path = "note" />
-          <Editor path = "editor" />
 
         </Router>
+        </ThemeApp>
 
   );
 }

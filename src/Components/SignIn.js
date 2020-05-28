@@ -60,7 +60,7 @@ const SignIn = () => {
         <p className="text-center my-3">or</p>
         <button
           className="bg-red-500 hover:bg-red-600 w-full py-2 text-white" onClick={() => {
-            signInWithGoogle();
+            signInWithGoogle()
           }}>
           Sign in with Google
         </button>
