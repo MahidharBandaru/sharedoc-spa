@@ -11,22 +11,13 @@ jobs:
     - stage: build
       script: echo "Done"
           #- npm run build
-    - stage: deploy to staging
+    - stage: deploy
       if: branch=master
       script: skip
       deploy: &heroku
         provider: heroku
-        app: share-doc-staging
+        app: share-doc
         api_key: $HEROKU_AUTH_TOKEN
-    - stage: test staging
-      if: branch=master
-      script: 'curl https://share-doc-staging.herokuapp.com'
-    - stage: deploy to production
-      if: branch=master
-      script: skip
-      deploy:
-       <<: *heroku
-       app: share-doc
-    - stage: test production
+    - stage: check production
       if: branch=master
       script: 'curl https://share-doc.herokuapp.com'
