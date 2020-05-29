@@ -296,7 +296,7 @@ class Editor extends Component {
       if(this.props.docId === 'new') {
         console.log("not going further");
         const docId = await createNewDoc(this.state.user, "");
-        await navigate(`${docId}`);
+        await navigate(`${docId}`, true);
 
         // return;
       }
@@ -351,7 +351,9 @@ class Editor extends Component {
 
         // pull changes
         console.log('pull change callback init');
-        docRef.on('value', data => {
+
+
+        docRef.on('value', async data => {
 
             // console.log(data.val());
             const val = data.val();
@@ -362,11 +364,17 @@ class Editor extends Component {
 
             that.setState({deltas: true});
             let newText = val.text;
-            that.setState({ value: newText});
+            that.setState({ value: newText, title: val.title});
+            let access = await haveAccess(this.props.docId, this.state.user);
+            console.log(access);
+            if(!access) {
+              let createdBy = await getCreatorDoc(docId);
+              let emailName = await getEmailNameFromUid(createdBy);
+              this.setState({errorMessage: `You dont have access to this file. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`});
+              this.setState({access: false});
+            }
+
             that.setState({deltas: false});
-
-
-
         });
     }
     render() {
