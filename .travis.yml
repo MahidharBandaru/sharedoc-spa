@@ -9,7 +9,7 @@ jobs:
     - stage: unit tests
       script: npm test
     - stage: build
-      script:
+      script: echo "Done"
           #- npm run build
     - stage: deploy to staging
       if: branch=master
