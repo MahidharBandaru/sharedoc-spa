@@ -18,6 +18,7 @@ jobs:
     - stage: deploy to production
       if: branch=master
       script: skip
+      deploy:
        <<: *heroku
        app: share-doc
     - stage: test production
