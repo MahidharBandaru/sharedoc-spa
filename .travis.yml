@@ -1,15 +1,25 @@
-language: node_js
-node_js:
-- stable
-cache:
-  npm: false
-script:
-- npm test
-  # - npm run build
-deploy:
-  provider: heroku
-  app: immense-waters-49578
-  on:
-    branch: master
-  api_key:
-    secure: Ws65+w/XtSDc6ajR2CQtIjeGZq5ME8cqPKlpXCJMXerrl/kUSPOMQaQgFJ2O/2vSI99TrWmCMAsroxA/xQp8WB2cvDxL+HLppa37PcCc8VfKZjvGIE5+JX1p4LpuNP+K9z1qUp/7Ixj/ywl5H/M5YDw1zL7zPKt+1JbRicNAOpkdAYrB06/qwNVjq1JMPbFktuY+RhwlOHs1uOCCFJ5a++owUjQPOavtvMNHBOS5CjX4f//3oRvGTM2B5EneEz6E1OZBKIKxeey6h/kVfagg8vohQtfrSXzwulOkEQWZep8QwQwEI4wJFbUg8Gw0weW7k3e9QQvS2rmQBiCWe2OeKWRD0V2VETIejK5SBgh7plUwWFIK4riSxmGYIppeoGkLjLKnjaYYURdPmojvvtut/X4hWQjCd35vf6Lp29X877wDEQLUuFIfvgKtz/1/MXRf2epEo8vcM/f2J0TuKy04PuWAg/JKtuIti50OgHKfO6cFGlD5KBpGQKTJO0doJKN+sknqXfKzmk3IndUHn1r46MBAktCS8Ff8tZcC2URh/JP41sSCqaNFHUgUmRNNRl9zrDpIr0hqeIanw4K6LL+WSB6vMA559k+VszSemyINmgFBzEbsmCwG/okpGZjk7bcx3XjQjoLnjraCoJ8fTp9OKd6HN08FYrFk2e4j5ei5B7k=
+jobs:
+  include:
+    - stage: unit tests
+      script: sudo npm test
+    - stage: build
+      script:
+      - sudo npm run build
+    - stage: deploy to staging
+      if: branch=master
+      script: skip
+      deploy: &heroku
+        provider: heroku
+        app: share-doc-staging
+        api_key: $HEROKU_AUTH_TOKEN
+    - stage: test staging
+      if: branch=master
+      script: 'curl https://share-doc-staging.herokuapp.com'
+    - stage: deploy to production
+      if: branch=master
+      script: skip
+       <<: *heroku
+       app: share-doc
+    - stage: test production
+      if: branch=master
+      script: 'curl https://share-doc.herokuapp.com'
