@@ -52,7 +52,17 @@ async function getDocs (uid) {
   return docs;
 }
 
-async function getDocNames (uid, docs) {
+async function getOtherDocs (uid) {
+
+  let ref = await firestore.ref(`users/${uid}/otherDocs`).once ('value');
+  let obj = ref.val (), docs = [];
+  for (let x in obj) {
+    docs.push (x);
+  }
+  return docs;
+}
+
+async function getDocNames (uid, docs, otherDocs) {
   let docNames = [];
   for (let dID of docs) {
     let ref = await firestore.ref (`doc/${dID}/title`).once ('value');
@@ -60,6 +70,14 @@ async function getDocNames (uid, docs) {
     if (name.length == 0) name = "<No Title>"
     docNames.push ([name, dID]);
   }
+  for (let dID of otherDocs) {
+    let ref = await firestore.ref (`doc/${dID}/title`).once ('value');
+    let name = ref.val ();
+    if (name.length == 0) name = "<No Title>"
+    name += " [ Collab ]";
+    docNames.push ([name, dID]);
+  }
+  console.log (docNames);
   return docNames;
 }
 class Dashboard extends Component {
@@ -82,7 +100,8 @@ class Dashboard extends Component {
     componentDidMount = async () => {
       let uid = auth.W;
       let docs = await getDocs (uid);
-      let docNames = await getDocNames (uid, docs);
+      let otherDocs = await getOtherDocs (uid);
+      let docNames = await getDocNames (uid, docs, otherDocs);
       this.setState ({'docNames' : docNames});
     }
 

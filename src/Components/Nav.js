@@ -30,8 +30,6 @@ function Nav() {
         </Flex>
         <Box>
           <NavLink>Home</NavLink>
-          <NavLink>About</NavLink>
-          <NavLink>Contact</NavLink>
         </Box>
       </Flex>
     </ThemeProvider>
