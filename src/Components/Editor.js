@@ -4,8 +4,20 @@ import AceEditor from "react-ace";
 import { firestore } from "./firebase"
 import { UserContext } from "../Providers/UserProvider";
 import "ace-builds/src-noconflict/mode-jsx";
+import {navigate} from "@reach/router"
+
 import {
-  Input
+  Input,
+  Stack,
+  Spinner,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  Button,
+
 } from "@chakra-ui/core";
 const Automerge = require('automerge');
 
@@ -94,80 +106,56 @@ function roughSizeOfObject(object) {
 // chat
 // todos
 
-function getMethods(obj) {
-    var result = [];
-    for (var id in obj) {
-      try {
-        if (typeof(obj[id]) == "function") {
-          result.push(id + ": " + obj[id].toString());
-        }
-      } catch (err) {
-        result.push(id + ": inaccessible");
-      }
-    }
-    return result;
-  }
-
-  async function getUidFromEmail(email) {
-    let userref = firestore.ref('users/' + email);
-    let ans = userref.once('value').then(function(snapshot) {
-      const val = userref.val();
-      if(!val) {
-        console.log("user doesn't exist");
-        return false;
-      }
-      return val.uid;
-    });
-    return ans;
-  }
-  async function haveAccess(docId, Id, email = false) {
-    if(email === false) {
+  async function haveAccess(docId, Id) {
       const docref = firestore.ref('doc/' + docId + '/collaborators/' + Id);
-      let ans = docref.once('value').then(function(snapshot) {
-        const val = snapshot.val();
-        if(!val) return false;
-        return true;
-      });
-      return ans;
-    }
-    let uid = getUidFromEmail(Id);
-    if(uid === false) return false;
-    const docref = firestore.ref('doc/' + docId + '/collaborators/' + uid);
-    let ans = docref.once('value').then(function(snapshot) {
+      let snapshot = await docref.once('value');
       const val = snapshot.val();
       if(!val) return false;
       return true;
-    });
-    return ans;
 }
   async function addCollaborator(docId, uid) {
-    const docref = firestore.ref('doc/' + docId + '/collaborators/' + uid);
-    let ans = docref.once('value').then(function(snapshot) {
-      const val = snapshot.val();
-      if(!val) return false;
-      return true;
-    });
-    if(ans === true) return;
-    firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
+    const docref = await firestore.ref('doc/' + docId + '/collaborators/' + uid);
+    let snapshot = await docref.once('value');
+    let ans;
+    const val = snapshot.val();
+    if(!val) ans = false;
+    ans = true;
+    if(ans === true) return "Collaborator already exists";
+    await firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
       creator: false,
     });
-    firestore.ref('users/' + uid + '/otherDocs').set({
+    await firestore.ref('users/' + uid + '/otherDocs/' + docId).set({
       docId
     });
 
 
   }
 
-  async function createNewDoc(docId, uid, title = "") {
-    const  docRef = firestore.ref('doc/' + docId);
+  async function getEmailNameFromUid(uid) {
+    let displayName = "";
+    // let displayName = await firestore.ref('users/' + uid + '/displayName').once('value');
+    let email = "";
+    // let email = await firestore.ref('users/' + uid + '/email').once('value');
+    return {displayName, email};
+  }
 
-    docRef.once('value').then(function(snapshot) {
+  async function getCreatorDoc(docId) {
+    let uid = await firestore.ref('doc/' + docId + '/createdBy').once('value');
+    return uid;
+  }
+  async function createNewDoc(uid, title = "") {
+    const  docRef = await firestore.ref('doc/');
+    const newRef = await docRef.push();
+    const docId = newRef.key;
+
+
+    await newRef.once('value').then(function(snapshot) {
         // console.log(snapshot.val());
         if(snapshot.val()) {
           return;
         }
 
-          docRef.set({
+          newRef.set({
             title: title,
             text: defaultValue,
             lastChanged: "",
@@ -176,13 +164,15 @@ function getMethods(obj) {
           firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
             creator: true,
           })
-          firestore.ref('users/' + uid + '/myDocs').set({
+          firestore.ref('users/' + uid + '/myDocs/' + docId).set({
             docId
           });
           console.log("new doc created");
 
 
     });
+    // console.log(docId);
+    return docId;
   }
 
 class Editor extends Component {
@@ -200,15 +190,7 @@ class Editor extends Component {
         let updates = {};
         updates['/text'] = newValue;
         updates['/lastChanged'] = this.state.user;
-        // docRef.set({text: newValue, lastChanged: this.state.user});
         return docRef.update(updates);
-
-        // let doc = Automerge.change(this.state.doc, `change by ${this.state.user}`, (currDoc) => {
-        //     currDoc.text = new Automerge.Text(newValue);
-        // });
-        // this.setState({
-        //     doc: doc
-        // });
 
     }
 
@@ -266,6 +248,10 @@ class Editor extends Component {
       updates['/title'] = event.target.value;
       return docRef.update(updates);
     };
+    onRedirect = async  event => {
+      await navigate(`../`);
+
+    }
 
     constructor(props) {
         super(props);
@@ -287,6 +273,9 @@ class Editor extends Component {
             initialRender: false,
             deltas: false,
             title: "",
+            access: false,
+            errorMessage: "",
+            loading: true,
             // doc:
         };
         this.setPlaceholder = this.setPlaceholder.bind(this);
@@ -298,37 +287,51 @@ class Editor extends Component {
         this.onChangeHandler = this.onChangeHandler.bind(this);
         this.editorref = React.createRef();
         this.handleTitleChange = this.handleTitleChange.bind(this);
+        this.onRedirect = this.onRedirect.bind(this);
     }
-    componentDidMount = () => {
+    componentDidMount = async () => {
+      if(this.props.docId === 'new') {
+        console.log("not going further");
+        const docId = await createNewDoc(this.state.user, "");
+        await navigate(`${docId}`);
+
+        // return;
+      }
+      console.log("out of the if");
+
         const  docRef = firestore.ref('doc/' + this.props.docId);
         let that = this;
         let uid = this.state.user;
         let docId = this.props.docId;
-        docRef.once('value').then(function(snapshot) {
-            // console.log(snapshot.val());
-            if(!snapshot.val()) {
+        const snapshot = await docRef.once('value');
+        let access = true;
+        if(!snapshot.val()) {
 
-              docRef.set({
-                title: "",
-                text: defaultValue,
-                lastChanged: "",
-                createdBy: that.state.user,
-              });
-              firestore.ref('doc/' + that.props.docId + '/collaborators/' + uid).set({
-                creator: true,
-              })
-              firestore.ref('users/' + uid + '/myDocs').set({
-                docId
-              });
-              console.log("new doc created");
-              return;
-            }
-            that.setState({deltas: true});
-            that.setState({value: (snapshot.val() ? snapshot.val().text : "")});
-            that.setState({deltas: false});
+          // this.setState({access: false});
+          this.setState({errorMessage: 'File does not exist. Please create a new one or access one that exists.'});
+          access = false;
+        }
+        if(access) {
+          access = await haveAccess(docId, uid);
+          if(!access) {
+            let createdBy = await getCreatorDoc(docId);
+            let emailName = await getEmailNameFromUid(createdBy);
+            this.setState({errorMessage: `You dont have access to this file. Please ask ${emailName.name} for access. Email id is ${emailName.name}`});
+          }
+        }
 
+        this.setState({loading: false});
 
-        });
+        that.setState({deltas: true});
+        that.setState({value: (snapshot.val() ? snapshot.val().text : "")});
+        that.setState({deltas: false});
+
+        console.log(this.state.access);
+        if(access === false) {
+          return;
+        }
+        this.setState({access: true});
+
 
         const editor = this.editorref.current.editor;
 
@@ -344,7 +347,7 @@ class Editor extends Component {
         // });
 
         // pull changes
-
+        console.log('pull change callback init');
         docRef.on('value', data => {
 
             // console.log(data.val());
@@ -364,33 +367,53 @@ class Editor extends Component {
         });
     }
     render() {
-        return (
-            <div>
-                <Input
-                  value={this.state.title}
-                  onChange={this.handleTitleChange}
-                  placeholder="Enter filename here"
-                  size="sm"
-                />
-                <AceEditor
-                mode="java"
-                theme="github"
-                onChange={this.onChange}
-                value={this.state.value}
-                ref={this.editorref}
-                name="UNIQUE_ID_OF_DIV"
-                editorProps={{ $blockScrolling: true }}
-                setOptions={{
-                    enableBasicAutocompletion: true,
-                    enableLiveAutocompletion: true,
-                    enableSnippets: true
-                }}
-            />
-            </div>
+      return (this.props.docId === 'new' || this.state.loading) ? (<Stack isInline spacing={4}>
+      <Spinner size="xl" />
+    </Stack>) : ( (!this.state.access) ? (<div>
 
-        );
+      <AlertDialog
+        isOpen={true}
+      >
+        <AlertDialogOverlay />
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+            Bad Access
+          </AlertDialogHeader>
 
+          <AlertDialogBody>
+            {this.state.errorMessage}
+          </AlertDialogBody>
+
+          <AlertDialogFooter>
+            <Button variantColor="red" onClick={this.onRedirect} ml={3}>
+              Okay
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>) : (<div>
+        <Input
+          value={this.state.title}
+          onChange={this.handleTitleChange}
+          placeholder="Enter filename here"
+          size="sm"
+        />
+        <AceEditor
+        mode="java"
+        theme="github"
+        onChange={this.onChange}
+        value={this.state.value}
+        ref={this.editorref}
+        name="UNIQUE_ID_OF_DIV"
+        editorProps={{ $blockScrolling: true }}
+        setOptions={{
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true,
+            enableSnippets: true
+        }}
+    />
+    </div>) ) ;
     }
-}
+  }
 
 export default Editor;
