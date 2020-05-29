@@ -5,7 +5,7 @@ cache:
   npm: false
 script:
 - npm test
-- npm run build
+  # - npm run build
 deploy:
   provider: heroku
   app: immense-waters-49578
