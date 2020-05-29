@@ -132,16 +132,19 @@ function roughSizeOfObject(object) {
   }
 
   async function getEmailNameFromUid(uid) {
+    console.log(uid);
     let displayName = "";
-    // let displayName = await firestore.ref('users/' + uid + '/displayName').once('value');
-    let email = "";
+    displayName = await firestore.ref(`users/${uid}/displayName`).once('value');
+    displayName = displayName.val();
+    let email = await firestore.ref(`users/${uid}/email`).once('value');
+    email = email.val();
     // let email = await firestore.ref('users/' + uid + '/email').once('value');
     return {displayName, email};
   }
 
   async function getCreatorDoc(docId) {
     let uid = await firestore.ref('doc/' + docId + '/createdBy').once('value');
-    return uid;
+    return uid.val();
   }
   async function createNewDoc(uid, title = "") {
     const  docRef = await firestore.ref('doc/');
@@ -316,7 +319,7 @@ class Editor extends Component {
           if(!access) {
             let createdBy = await getCreatorDoc(docId);
             let emailName = await getEmailNameFromUid(createdBy);
-            this.setState({errorMessage: `You dont have access to this file. Please ask ${emailName.name} for access. Email id is ${emailName.name}`});
+            this.setState({errorMessage: `You dont have access to this file. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`});
           }
         }
 
