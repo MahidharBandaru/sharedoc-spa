@@ -2,6 +2,9 @@ import React, { useContext, Component } from "react";
 import { UserContext } from "../Providers/UserProvider";
 import {auth} from "./firebase";
 
+import { Link } from "@chakra-ui/core";
+import {navigate} from "@reach/router"
+
 import {
   Accordion,
   AccordionItem,
@@ -38,20 +41,29 @@ function StackEx() {
     </Stack>
   );
 }
+
+
 class Dashboard extends Component {
     static contextType = UserContext;
+
+    handleNewFileCreation () {
+      navigate(`/editor/new`);
+    };
 
     constructor(props) {
         super(props);
         this.state = {
             // doc:
         };
+        this.handleNewFileCreation = this.handleNewFileCreation.bind(this);
     }
 
     render() {
         return (
           <div>
+
           <Accordion>
+          <Link onClick={this.handleNewFileCreation}>New File</Link>
 <AccordionItem>
   <AccordionHeader>
     <Box flex="1" textAlign="left">

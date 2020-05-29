@@ -296,7 +296,7 @@ class Editor extends Component {
       if(this.props.docId === 'new') {
         console.log("not going further");
         const docId = await createNewDoc(this.state.user, "");
-        await navigate(`${docId}`, true);
+        await navigate(`${docId}`, { replace: true });
 
         // return;
       }
