@@ -7,10 +7,10 @@ cache:
 jobs:
   include:
     - stage: unit tests
-      script: sudo npm test
+      script: npm test
     - stage: build
       script:
-      - sudo npm run build
+      - npm run build
     - stage: deploy to staging
       if: branch=master
       script: skip
