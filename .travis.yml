@@ -10,7 +10,7 @@ jobs:
       script: npm test
     - stage: build
       script:
-      - npm run build
+          #- npm run build
     - stage: deploy to staging
       if: branch=master
       script: skip
