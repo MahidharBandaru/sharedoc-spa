@@ -2,21 +2,49 @@ import React, { useContext, Component } from "react";
 import { UserContext } from "../Providers/UserProvider";
 import {auth, firestore} from "./firebase";
 
-import { Link, ListItem, List } from "@chakra-ui/core";
+import { Chip } from "@material-ui/core"
 import {navigate} from "@reach/router"
 
+import { makeStyles } from '@material-ui/core/styles';
+import ListSubheader from '@material-ui/core/ListSubheader';
+import List from '@material-ui/core/List';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
+import Collapse from '@material-ui/core/Collapse';
+import SendIcon from '@material-ui/icons/Send';
+import ExpandLess from '@material-ui/icons/ExpandLess';
+import ExpandMore from '@material-ui/icons/ExpandMore';
+import StarBorder from '@material-ui/icons/StarBorder';
+
+import Fab from '@material-ui/core/Fab';
+import AddIcon from '@material-ui/icons/Add';
+
 import {
-  Accordion,
-  AccordionItem,
-  AccordionHeader,
-  AccordionPanel,
-  AccordionIcon,
   Stack,
   Heading,
   Box,
   Text,
-  Button,
 } from "@chakra-ui/core";
+
+
+const useStyles = makeStyles((theme) => ({
+  margin: {
+    margin: theme.spacing(1),
+  },
+  extendedIcon: {
+    marginRight: theme.spacing(1),
+  },
+  root: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: theme.palette.background.paper,
+  },
+  nested: {
+    paddingLeft: theme.spacing(4),
+  },
+}));
+
 
 function Feature({ title, desc, ...rest }) {
   return (
@@ -80,6 +108,49 @@ async function getDocNames (uid, docs, otherDocs) {
   console.log (docNames);
   return docNames;
 }
+
+function NestedList(arr) {
+  // arr = Array.from(arr)
+  console.log(arr.arr)
+  const classes = useStyles();
+  const [open, setOpen] = React.useState(true);
+
+  const handleClick = () => {
+    setOpen(!open);
+  };
+
+  return (
+    <List
+      component="nav"
+      aria-labelledby="nested-list-subheader"
+      subheader={
+        <ListSubheader component="div" id="nested-list-subheader">
+          <font size="+2">My Projects</font>
+        </ListSubheader>
+      }
+      className={classes.root}
+    >
+      <ListItem button onClick={handleClick}>
+        <ListItemIcon>
+          <SendIcon />
+        </ListItemIcon>
+        <ListItemText> Project 1 </ListItemText>
+        {open ? <ExpandLess /> : <ExpandMore />}
+      </ListItem>
+      <Collapse in={open} timeout="auto" unmountOnExit>
+        {arr.arr.map(ele => <List component="div" disablePadding>
+          <ListItem button className={classes.nested}>
+            <ListItemIcon>
+              <StarBorder />
+            </ListItemIcon>
+            <ListItemText> {ele} </ListItemText>
+          </ListItem>
+        </List>)}
+      </Collapse>
+    </List>
+  );
+}
+
 class Dashboard extends Component {
     static contextType = UserContext;
 
@@ -97,6 +168,8 @@ class Dashboard extends Component {
         this.handleNewFileCreation = this.handleNewFileCreation.bind(this);
     }
 
+    
+
     componentDidMount = async () => {
       let uid = auth.W;
       let docs = await getDocs (uid);
@@ -106,62 +179,27 @@ class Dashboard extends Component {
     }
 
     render() {
-      let arr = [];
-      for (let l of this.state.docNames) {
-        let title = l[0], id = l[1];
-        let url = `/editor/${id}`
-        arr.push (
-          <ListItem><a href={url}>{title}</a></ListItem>
-        );
-      }
-      return (
-        <div>
-          <Link onClick={this.handleNewFileCreation}>New File</Link>
-          <br/>
-          List of my docs:
-          <List styleType="disc">
-          {arr}
-          </List>
-        </div>
-      );
-        return (
-          <div>
 
-          <Accordion>
-<AccordionItem>
-  <AccordionHeader>
-    <Box flex="1" textAlign="left">
-      Section 1 title
-    </Box>
-    <AccordionIcon />
-  </AccordionHeader>
-  {/* <AccordionPanel pb={4}>
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-    tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-    veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
-    commodo consequat.
-  </AccordionPanel> */}
-</AccordionItem>
+  let arr = [];
+  for (let l of this.state.docNames) {
+    let title = l[0], id = l[1];
+    let url = `/editor/${id}`
+    arr.push (
+      <ListItem><a href={url}>{title}</a></ListItem>
+    );
+  }
 
-<AccordionItem>
-  <AccordionHeader>
-    <Box flex="1" textAlign="left" onChange={getDocs}>
-      Section 2 title
-    </Box>
-    <AccordionIcon />
-  </AccordionHeader>
-  {/* <AccordionPanel pb={4}>
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-    tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-    veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
-    commodo consequat.
-  </AccordionPanel> */}
-</AccordionItem>
-</Accordion>
-<Button onClick = {() => {auth.signOut()}}>Sign out</Button>
-</div>
-        );
-
+    console.log(arr)
+    return(
+      <div>
+        <Fab color="secondary" aria-label="add" onClick={this.handleNewFileCreation}>
+          <AddIcon label="Create New File"/>
+        </Fab>
+      <Chip size='medium' label='Create New file'/>
+      <NestedList arr={arr}/>
+      </div>
+    );
     }
   }
+  
 export default Dashboard;
