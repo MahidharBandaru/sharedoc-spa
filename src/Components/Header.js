@@ -50,7 +50,7 @@ const Header = props => {
         flexGrow={1}
       >
         <MenuItems><Link to="/">Home</Link></MenuItems>
-        <MenuItems><Link to="/new">New File</Link></MenuItems>
+        <MenuItems><Link to="editor/new">New File</Link></MenuItems>
       </Box>
 
       <Box
