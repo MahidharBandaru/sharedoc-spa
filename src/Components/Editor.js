@@ -7,8 +7,10 @@ import "ace-builds/src-noconflict/mode-jsx";
 import {navigate} from "@reach/router"
 import Collaborators from "./Collaborators"
 import {Feature} from "./Collaborators"
+import Footer from "./Footer"
 
 import {
+  Box,
   Input,
   Stack,
   Spinner,
@@ -23,6 +25,7 @@ import {
 } from "@chakra-ui/core";
 
 import {
+  Flex,
   Drawer,
   DrawerBody,
   DrawerFooter,
@@ -80,70 +83,33 @@ require("ace-builds/src-min-noconflict/ext-language_tools");
 
 const defaultValue = ""
 
-function roughSizeOfObject(object) {
 
-    var objectList = [];
-    var stack = [object];
-    var bytes = 0;
-
-    while (stack.length) {
-        var value = stack.pop();
-
-        if (typeof value === 'boolean') {
-            bytes += 4;
-        }
-        else if (typeof value === 'string') {
-            bytes += value.length * 2;
-        }
-        else if (typeof value === 'number') {
-            bytes += 8;
-        }
-        else if
-            (
-            typeof value === 'object'
-            && objectList.indexOf(value) === -1
-        ) {
-            objectList.push(value);
-
-            for (var i in value) {
-                stack.push(value[i]);
-            }
-        }
-    }
-    return bytes;
-}
-
-// routing
-// db rules
-// flow
-// editor remodel
-// chat
-// todos
-
-  async function haveAccess(docId, Id) {
-      const docref = firestore.ref('doc/' + docId + '/collaborators/' + Id);
-      let snapshot = await docref.once('value');
-      const val = snapshot.val();
-      if(!val) return false;
-      return true;
-}
-  async function addCollaborator(docId, uid) {
-    const docref = await firestore.ref('doc/' + docId + '/collaborators/' + uid);
+async function haveAccess(projectId, Id) {
+  console.log(projectId, Id);
+    const docref = firestore.ref('project/' + projectId + '/collaborators/' + Id);
     let snapshot = await docref.once('value');
-    let ans;
     const val = snapshot.val();
-    ans = true;
-    if(!val) ans = false;
-    if(ans === true) return "Collaborator already exists";
-    await firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
-      creator: false,
-    });
-    await firestore.ref('users/' + uid + '/otherDocs/' + docId).set({
-      docId
-    });
+    console.log(val);
+    if(!val) return false;
+    return true;
+}
+async function addCollaborator(projectId, uid) {
+  const docref = await firestore.ref('project/' + projectId + '/collaborators/' + uid);
+  let snapshot = await docref.once('value');
+  let ans;
+  const val = snapshot.val();
+  ans = true;
+  if(!val) ans = false;
+  if(ans === true) return "Collaborator already exists";
+  await firestore.ref('project/' + projectId + '/collaborators/' + uid).set({
+    creator: false,
+  });
+  await firestore.ref('users/' + uid + '/otherProjects/' + projectId).set({
+    projectId
+  });
 
 
-  }
+}
 
 
 
@@ -158,44 +124,13 @@ function roughSizeOfObject(object) {
     return {displayName, email};
   }
 
-  async function getCreatorDoc(docId) {
-    let uid = await firestore.ref('doc/' + docId + '/createdBy').once('value');
+  async function getCreatorProject(projectId) {
+    let uid = await firestore.ref('project/' + projectId + '/createdBy').once('value');
     return uid.val();
   }
-  async function createNewDoc(uid, title = "") {
-    const  docRef = await firestore.ref('doc/');
-    const newRef = await docRef.push();
-    const docId = newRef.key;
 
-
-    await newRef.once('value').then(function(snapshot) {
-        // // console.log(snapshot.val());
-        if(snapshot.val()) {
-          return;
-        }
-
-          newRef.set({
-            title: title,
-            text: defaultValue,
-            lastChanged: "",
-            createdBy: uid,
-          });
-          firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
-            creator: true,
-          })
-          firestore.ref('users/' + uid + '/myDocs/' + docId).set({
-            docId
-          });
-          // console.log("new doc created");
-
-
-    });
-    // // console.log(docId);
-    return docId;
-  }
-
-  async function getCollaborators(docId) {
-    const docref = await firestore.ref('doc/' + docId + '/collaborators');
+  async function getCollaborators(projectId) {
+    const docref = await firestore.ref('project/' + projectId + '/collaborators');
     let snapshot = await docref.once('value');
     snapshot = snapshot.val();
     // console.log(snapshot);
@@ -208,7 +143,7 @@ function roughSizeOfObject(object) {
       ans.push(user);
     }
     return ans;
-  }
+}
 
 class Editor extends Component {
     static contextType = UserContext;
@@ -223,6 +158,7 @@ class Editor extends Component {
         if(this.state.deltas) return;
         const docRef = firestore.ref('doc/' + this.props.docId);
         let updates = {};
+        console.log(newValue, this.state.user);
         updates['/text'] = newValue;
         updates['/lastChanged'] = this.state.user;
         return docRef.update(updates);
@@ -278,13 +214,16 @@ class Editor extends Component {
     };
     handleTitleChange = event => {
       this.setState({title: event.target.value});
-      const  docRef = firestore.ref('doc/' + this.props.docId);
+      console.log(event.target.value);
+      const  docRef = firestore.ref('project/' + this.props.projectId);
       let updates = {};
       updates['/title'] = event.target.value;
       return docRef.update(updates);
     };
     onRedirect = async  event => {
-      await navigate(`../`);
+      if(this.props.docId)
+      await navigate(`../../`);
+      else await navigate(`../`);
 
     }
 
@@ -329,50 +268,73 @@ class Editor extends Component {
         this.onRedirect = this.onRedirect.bind(this);
     }
     componentDidMount = async () => {
-      if(this.props.docId === 'new') {
-        // console.log("not going further");
-        const docId = await createNewDoc(this.state.user, "");
-        await navigate(`${docId}`, { replace: true });
-
-        // return;
-      }
+      // if(this.props.docId === 'new') {
+      //   // console.log("not going further");
+      //   const docId = await createNewDoc(this.state.user, "");
+      //   await navigate(`${docId}`, { replace: true });
+      //
+      //   return;
+      // }
       // console.log("out of the if");
+      console.log(this.props.docId);
+      const  projectRef = firestore.ref('project/' + this.props.projectId);
+      let that = this;
+      let uid = this.state.user;
+      let projectId = this.props.projectId;
+      const snapshot = await projectRef.once('value');
+      console.log(snapshot.val());
+      let access = true;
+      if(!snapshot.val()) {
 
+        // this.setState({access: false});
+        this.setState({errorMessage: 'Project does not exist. Please create a new one or access one that exists.'});
+        access = false;
+      }
+      if(access) {
+        access = await haveAccess(projectId, uid);
+        if(!access) {
+          let createdBy = await getCreatorProject(projectId);
+          let emailName = await getEmailNameFromUid(createdBy);
+          console.log(`You dont have access to this Project. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`);
+          this.setState({errorMessage: `You dont have access to this Project. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`});
+        }
+      }
+      // console.log(this.state.access);
+
+
+
+      // this.setState({loading: false});
+      console.log("debug", this.props.docId);
+      if(this.props.docId) {
         const  docRef = firestore.ref('doc/' + this.props.docId);
         let that = this;
         let uid = this.state.user;
         let docId = this.props.docId;
         const snapshot = await docRef.once('value');
-        let access = true;
-        if(!snapshot.val()) {
-
-          // this.setState({access: false});
-          this.setState({errorMessage: 'File does not exist. Please create a new one or access one that exists.'});
-          access = false;
-        }
-        if(access) {
-          access = await haveAccess(docId, uid);
-          if(!access) {
-            let createdBy = await getCreatorDoc(docId);
-            let emailName = await getEmailNameFromUid(createdBy);
-            this.setState({errorMessage: `You dont have access to this file. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`});
-          }
-        }
-
-        this.setState({loading: false});
-
+        console.log(snapshot.val());
         that.setState({deltas: true});
         that.setState({value: (snapshot.val() ? snapshot.val().text : "")});
+        that.setState({Filetitle: snapshot.val() ? snapshot.val().title : ""});
         that.setState({deltas: false});
+        // const editor = this.editorref.current.editor;
 
-        // console.log(this.state.access);
-        if(access === false) {
-          return;
-        }
-        this.setState({access: true});
+      }
+
+      this.setState({loading: false});
+
+      if(access === false) {
+        console.log("returning");
+        return;
+      }
+      this.setState({access: true});
 
 
-        const editor = this.editorref.current.editor;
+
+
+
+
+
+
 
         // push changes
         // var deltas = false;
@@ -387,23 +349,12 @@ class Editor extends Component {
 
         // pull changes
         // console.log('pull change callback init');
-
-
-
-        docRef.on('value', async data => {
+        projectRef.on('value', async data => {
 
             // // console.log(data.val());
             const val = data.val();
             if(!val) {
               return;
-            }
-            let access = await haveAccess(this.props.docId, this.state.user);
-            // console.log(access);
-            if(!access) {
-              let createdBy = await getCreatorDoc(docId);
-              let emailName = await getEmailNameFromUid(createdBy);
-              this.setState({errorMessage: `You dont have access to this file. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`});
-              this.setState({access: false});
             }
             let snapshot = val.collaborators;
             // console.log(snapshot);
@@ -415,19 +366,21 @@ class Editor extends Component {
               // // console.log(user.val());
               ans.push(user.val());
             }
+            snapshot = val.docs;
+            let docId;
+            let docsData = [];
+            for(docId in snapshot) {
+              let doc = await firestore.ref('doc/' + docId).once('value');
+              doc.url = ('/' + docId);
+              docsData.push(doc);
+            }
+            let creator = val.createdBy;
+            console.log("creator", creator);
+            this.setState({creator: creator});
+            that.setState({title: val.title ? val.title : ""});
             // console.log(ans);
             this.setState({collaborators: ans});
-
-
-
-            if(val.lastChanged === this.state.user) return;
-
-            that.setState({deltas: true});
-            let newText = val.text;
-            that.setState({ value: newText, title: val.title});
-
-
-            that.setState({deltas: false});
+            this.setState({docsData: docsData});
         });
         let usersRef = firestore.ref('users/');
         usersRef.on('value', async data => {
@@ -437,9 +390,39 @@ class Editor extends Component {
           // // console.log(val);
 
         })
+
+        if(this.props.docId) {
+          const  docRef = firestore.ref('doc/' + this.props.docId);
+          docRef.on('value', async data => {
+
+              // // console.log(data.val());
+              const val = data.val();
+              if(!val) {
+                return;
+              }
+              let docCreator = val.createdBy;
+              console.log("docCreator", docCreator);
+              this.setState({docCreator});
+
+              let newText = val.text;
+              console.log(newText);
+
+              if(val.lastChanged === this.state.user) return;
+
+              that.setState({deltas: true});
+
+              that.setState({ value: newText, title: val.title});
+
+
+              that.setState({deltas: false});
+          });
+          let usersRef = firestore.ref('users/');
+        }
+
     }
     render() {
-      return (this.props.docId === 'new' || this.state.loading) ? (<Stack isInline spacing={4}>
+      console.log(this.props.docId, this.props.projectId);
+      return (this.state.loading) ? (<Stack isInline spacing={4}>
       <Spinner size="xl" />
     </Stack>) : ( (!this.state.access) ? (<div>
 
@@ -463,26 +446,34 @@ class Editor extends Component {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>) : (<div style={{
-        backgroundColor: 'blue',
-        width: '100px',
-        height: '100px'
-      }}>
+    </div>) : (<div>
+      <Box bg="black" w="100%" p={4} color="white">
+      <Flex bg="white" w="20%">
+      </Flex>
+
+
         <Input
           value={this.state.title}
           onChange={this.handleTitleChange}
-          placeholder="Enter filename here"
-          size="sm"
+          placeholder="Enter Project Name Here"
+          size="lg"
+          width="100"
+          bg="black"
         />
-        <Collaborators users={this.state.users} docId={this.props.docId}>
+        <Collaborators users={this.state.users} docId={this.props.docId} projectId={this.props.projectId}>
         <Stack spacing={1}>
         {this.state.collaborators.map((collaborator, key) => {
-          return (<Feature docId={this.props.docId} uid={collaborator.uid} key={key} displayName={collaborator.displayName} email={collaborator.email} profilePic={collaborator.profilePic} />)
+          // console.log(this.state.creator === this.state.user, collaborator.uid !== this.state.user)
+          console.log(this.props.projectId);
+          return (<Feature showRemove={(this.state.creator === this.state.user) && (collaborator.uid !== this.state.user)} projectId={this.props.projectId} docId={this.props.docId} uid={collaborator.uid} key={key} displayName={collaborator.displayName} email={collaborator.email} profilePic={collaborator.profilePic} />)
         })}
     </Stack>
         </ Collaborators>
-        <div>
+        {
+          ((this.props.docId) ? (<div>
         <AceEditor
+        width="100%"
+        // height="1000%"
         mode={this.state.mode}
         theme={this.state.theme}
         onChange={this.onChange}
@@ -496,7 +487,10 @@ class Editor extends Component {
             enableSnippets: true
         }}
     />
-    </div>
+
+    </div>) : (<div>  </div>))}
+
+  </Box>
     </div>) ) ;
     }
   }

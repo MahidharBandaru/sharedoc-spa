@@ -46,7 +46,7 @@ export class Feature extends Component {
 <Stack>
       <Heading fontSize="s">{this.props.displayName}</Heading>
       </Stack>
-      <Button onClick={this.onRemove} variantColor="red" variant="solid">
+      <Button isDisabled={!this.props.showRemove} onClick={this.onRemove} variantColor="red" variant="solid">
     Remove
   </Button>
       </Stack>
@@ -57,19 +57,21 @@ export class Feature extends Component {
 }
 
 
-async function addCollaborator(docId, uid) {
-  const docref = await firestore.ref('doc/' + docId + '/collaborators/' + uid);
+async function addCollaborator(projectId, uid) {
+  console.log("inside here", projectId, uid);
+  const docref = await firestore.ref('project/' + projectId + '/collaborators/' + uid);
   let snapshot = await docref.once('value');
   let ans;
   const val = snapshot.val();
+  console.log(val);
   ans = true;
   if(!val) ans = false;
   if(ans === true) return "Collaborator already exists";
-  await firestore.ref('doc/' + docId + '/collaborators/' + uid).set({
+  await firestore.ref('project/' + projectId + '/collaborators/' + uid).set({
     creator: false,
   });
-  await firestore.ref('users/' + uid + '/otherDocs/' + docId).set({
-    docId
+  await firestore.ref('users/' + uid + '/otherProjects/' + projectId).set({
+    projectId
   });
 
 
@@ -109,12 +111,13 @@ class  Collaborators extends Component {
     if(add) {
       // console.log(add);
 
-      await addCollaborator(this.props.docId,add);
+      await addCollaborator(this.props.projectId,add);
     }
     // console.log(this.props.users);
   }
   constructor(props) {
       super(props);
+      console.log(props);
       this.state = {
         isOpen: false,
         value: "",
@@ -129,6 +132,7 @@ class  Collaborators extends Component {
   }
 
 render () {
+  console.log(this.props, this.props.showRemove);
   return (
     <>
       <Button variantColor="teal" onClick={this.onOpen}>
