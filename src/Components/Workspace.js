@@ -86,7 +86,7 @@ const defaultValue = ""
 
   async function haveAccess(projectId, Id) {
     console.log(projectId, Id);
-      const docref = firestore.ref('doc/' + projectId + '/collaborators/' + Id);
+      const docref = firestore.ref('project/' + projectId + '/collaborators/' + Id);
       let snapshot = await docref.once('value');
       const val = snapshot.val();
       console.log(val);
@@ -94,14 +94,14 @@ const defaultValue = ""
       return true;
 }
   async function addCollaborator(projectId, uid) {
-    const docref = await firestore.ref('doc/' + projectId + '/collaborators/' + uid);
+    const docref = await firestore.ref('project/' + projectId + '/collaborators/' + uid);
     let snapshot = await docref.once('value');
     let ans;
     const val = snapshot.val();
     ans = true;
     if(!val) ans = false;
     if(ans === true) return "Collaborator already exists";
-    await firestore.ref('doc/' + projectId + '/collaborators/' + uid).set({
+    await firestore.ref('project/' + projectId + '/collaborators/' + uid).set({
       creator: false,
     });
     await firestore.ref('users/' + uid + '/otherDocs/' + projectId).set({
@@ -125,13 +125,13 @@ const defaultValue = ""
   }
 
   async function getCreatorDoc(projectId) {
-    let uid = await firestore.ref('doc/' + projectId + '/createdBy').once('value');
+    let uid = await firestore.ref('project/' + projectId + '/createdBy').once('value');
     return uid.val();
   }
-  async function createNewDoc(uid, title = "") {
+  async function createNewDoc(projectId, uid, title = "") {
     const  docRef = await firestore.ref('doc/');
     const newRef = await docRef.push();
-    const projectId = newRef.key;
+    const docId = newRef.key;
 
 
     await newRef.once('value').then(function(snapshot) {
@@ -146,12 +146,15 @@ const defaultValue = ""
             lastChanged: "",
             createdBy: uid,
           });
-          firestore.ref('doc/' + projectId + '/collaborators/' + uid).set({
-            creator: true,
-          })
-          firestore.ref('users/' + uid + '/myDocs/' + projectId).set({
-            projectId
-          });
+
+          const projectRef = await firestore.ref('project/' + projectId + '/doc' + docId).set({ docId });
+
+          // firestore.ref('doc/' + projectId + '/collaborators/' + uid).set({
+          //   creator: true,
+          // })
+          // firestore.ref('users/' + uid + '/myDocs/' + projectId).set({
+          //   projectId
+          // });
           // console.log("new doc created");
 
 
@@ -159,9 +162,10 @@ const defaultValue = ""
     // // console.log(projectId);
     return projectId;
   }
+  async function createNewProject()
 
   async function getCollaborators(projectId) {
-    const docref = await firestore.ref('doc/' + projectId + '/collaborators');
+    const docref = await firestore.ref('project/' + projectId + '/collaborators');
     let snapshot = await docref.once('value');
     snapshot = snapshot.val();
     // console.log(snapshot);
@@ -184,7 +188,7 @@ class Editor extends Component {
             value: newValue
         });
         if(this.state.deltas) return;
-        const docRef = firestore.ref('doc/' + this.props.projectId);
+        const docRef = firestore.ref('project/' + this.props.projectId);
         let updates = {};
         console.log(newValue, this.state.user);
         updates['/text'] = newValue;
@@ -207,7 +211,7 @@ class Editor extends Component {
 
     handleTitleChange = event => {
       this.setState({title: event.target.value});
-      const  docRef = firestore.ref('doc/' + this.props.projectId);
+      const  docRef = firestore.ref('project/' + this.props.projectId);
       let updates = {};
       updates['/title'] = event.target.value;
       return docRef.update(updates);
@@ -317,18 +321,6 @@ class Editor extends Component {
             this.setState({creator: creator});
             // console.log(ans);
             this.setState({collaborators: ans});
-
-            let newText = val.text;
-            console.log(newText);
-
-            if(val.lastChanged === this.state.user) return;
-
-            that.setState({deltas: true});
-
-            that.setState({ value: newText, title: val.title});
-
-
-            that.setState({deltas: false});
         });
         let usersRef = firestore.ref('users/');
         usersRef.on('value', async data => {
@@ -369,15 +361,15 @@ class Editor extends Component {
       <Flex bg="white" w="20%">
       </Flex>
 
-
-        <Input
-          value={this.state.title}
-          onChange={this.handleTitleChange}
-          placeholder="Enter filename here"
-          size="lg"
-          width="100"
-          bg="black"
-        />
+      {if(this.props.children) ? <Input
+        value={this.state.title}
+        onChange={this.handleTitleChange}
+        placeholder="Enter filename here"
+        size="lg"
+        width="100"
+        bg="black"
+      /> : <div />}
+      <Browser projectId={this.props.projectId} />
         <Collaborators users={this.state.users} projectId={this.props.projectId}>
         <Stack spacing={1}>
         {this.state.collaborators.map((collaborator, key) => {
@@ -387,22 +379,8 @@ class Editor extends Component {
     </Stack>
         </ Collaborators>
         <div>
-        <AceEditor
-        width="100%"
-        // height="1000%"
-        mode={this.state.mode}
-        theme={this.state.theme}
-        onChange={this.onChange}
-        value={this.state.value}
-        ref={this.editorref}
-        name="UNIQUE_ID_OF_DIV"
-        editorProps={{ $blockScrolling: true }}
-        setOptions={{
-            enableBasicAutocompletion: true,
-            enableLiveAutocompletion: true,
-            enableSnippets: true
-        }}
-    />
+        {this.props.children}
+
     <Footer />
 
     </div>

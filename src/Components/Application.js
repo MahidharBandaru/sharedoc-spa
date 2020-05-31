@@ -9,6 +9,11 @@ import Note from "./Note";
 import {UserContext, UserProvider} from "../Providers/UserProvider";
 import Dashboard from "./Dashboard"
 import Nav from "./Nav"
+import Footer from "./Footer"
+import Header from "./Header"
+import NewProject from "./NewProject"
+import NewDoc from "./NewDoc"
+
 import '../tailwind.generated.css';
 
 import { ThemeProvider, CSSReset } from '@chakra-ui/core'
@@ -32,12 +37,15 @@ function Application() {
   return (
         (user && user.uid) ?
         <ThemeApp>
-        <Nav />
+        <Header />
         <Router>
           <Dashboard path="/" />
-          <Editor path="editor/:docId" user={user.uid}/>
-
+          <NewProject path="editor/new" user={user.uid}/>
+          <Editor path="editor/:projectId" user={user.uid}/>
+          <NewDoc path="editor/:projectId/new" user={user.uid}/>
+          <Editor path="editor/:projectId/:docId" user={user.uid}/>
         </Router>
+        <Footer />
         </ThemeApp>
       :
       <ThemeApp>
@@ -46,6 +54,8 @@ function Application() {
           <SignIn path="/" />
 
         </Router>
+        <Footer />
+
         </ThemeApp>
 
   );
