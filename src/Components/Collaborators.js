@@ -15,16 +15,18 @@ import {
 } from "@chakra-ui/core";
 import {firestore} from "./firebase"
 
-async function removeCollaborator(docId, uid) {
-  const docref = await firestore.ref('doc/' + docId + '/collaborators/' + uid);
+async function removeCollaborator(projectId, uid) {
+  console.log("inside here", projectId, uid);
+  const docref = await firestore.ref('project/' + projectId + '/collaborators/' + uid);
   let snapshot = await docref.once('value');
   let ans;
   const val = snapshot.val();
+  console.log(val);
   ans = true;
   if(!val) ans = false;
-  if(ans === false) return "No Collab";
-  await firestore.ref('doc/' + docId + '/collaborators/' + uid).remove();
-  await firestore.ref('users/' + uid + '/otherDocs/' + docId).remove();
+  if(ans === false) return "Collaborator not present";
+  await firestore.ref('project/' + projectId + '/collaborators/' + uid).remove();
+  await firestore.ref('users/' + uid + '/otherProjects/' + projectId).remove();
 
 
 }
@@ -32,7 +34,7 @@ async function removeCollaborator(docId, uid) {
 export class Feature extends Component {
   onRemove = async () => {
     // console.log(this.props.docId, this.props.uid);
-    removeCollaborator(this.props.docId, this.props.uid);
+    removeCollaborator(this.props.projectId, this.props.uid);
   }
   constructor(props) {
       super(props);

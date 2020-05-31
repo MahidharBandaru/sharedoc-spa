@@ -8,6 +8,7 @@ import {navigate} from "@reach/router"
 import Collaborators from "./Collaborators"
 import {Feature} from "./Collaborators"
 import Footer from "./Footer"
+import Browser, {FileLink} from "./Browser"
 
 import {
   Box,
@@ -213,6 +214,7 @@ class Editor extends Component {
         }
     };
     handleTitleChange = event => {
+      console.log("title change");
       this.setState({title: event.target.value});
       console.log(event.target.value);
       const  docRef = firestore.ref('project/' + this.props.projectId);
@@ -220,11 +222,22 @@ class Editor extends Component {
       updates['/title'] = event.target.value;
       return docRef.update(updates);
     };
-    onRedirect = async  event => {
-      if(this.props.docId)
-      await navigate(`../../`);
-      else await navigate(`../`);
+    handleFileNameChange = event => {
+      console.log("filename change");
 
+      this.setState({fileName: event.target.value});
+      console.log(event.target.value);
+      const  docRef = firestore.ref('doc/' + this.props.docId);
+      let updates = {};
+      updates['/title'] = event.target.value;
+      return docRef.update(updates);
+    };
+    onRedirect = async  event => {
+      await navigate(`/`);
+
+    }
+    onNewFile = async event => {
+      navigate(`/editor/${this.props.projectId}/new`);
     }
 
 
@@ -249,11 +262,14 @@ class Editor extends Component {
             initialRender: false,
             deltas: false,
             title: "",
+            fileName: "",
             access: false,
             errorMessage: "",
             loading: true,
             collaborators: [],
             users: [],
+            docsData: [],
+
             // doc:
         };
         this.setPlaceholder = this.setPlaceholder.bind(this);
@@ -265,7 +281,9 @@ class Editor extends Component {
         this.onChangeHandler = this.onChangeHandler.bind(this);
         this.editorref = React.createRef();
         this.handleTitleChange = this.handleTitleChange.bind(this);
+        this.handleFileNameChange = this.handleFileNameChange.bind(this);
         this.onRedirect = this.onRedirect.bind(this);
+        this.onNewFile = this.onNewFile.bind(this);
     }
     componentDidMount = async () => {
       // if(this.props.docId === 'new') {
@@ -314,7 +332,7 @@ class Editor extends Component {
         console.log(snapshot.val());
         that.setState({deltas: true});
         that.setState({value: (snapshot.val() ? snapshot.val().text : "")});
-        that.setState({Filetitle: snapshot.val() ? snapshot.val().title : ""});
+        that.setState({fileName: snapshot.val() ? snapshot.val().title : ""});
         that.setState({deltas: false});
         // const editor = this.editorref.current.editor;
 
@@ -356,6 +374,14 @@ class Editor extends Component {
             if(!val) {
               return;
             }
+            access = await haveAccess(this.props.projectId, this.state.user);
+            if(!access) {
+              let createdBy = await getCreatorProject(projectId);
+              let emailName = await getEmailNameFromUid(createdBy);
+              console.log(`You dont have access to this Project. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`);
+              this.setState({errorMessage: `You dont have access to this Project. Please ask ${emailName.displayName} for access. Email id is ${emailName.email}`});
+              this.setState({access: false});
+            }
             let snapshot = val.collaborators;
             // console.log(snapshot);
             let uid;
@@ -371,7 +397,8 @@ class Editor extends Component {
             let docsData = [];
             for(docId in snapshot) {
               let doc = await firestore.ref('doc/' + docId).once('value');
-              doc.url = ('/' + docId);
+              doc = doc.val();
+              doc.url = (docId);
               docsData.push(doc);
             }
             let creator = val.createdBy;
@@ -403,6 +430,13 @@ class Editor extends Component {
               let docCreator = val.createdBy;
               console.log("docCreator", docCreator);
               this.setState({docCreator});
+              // let docId = this.props.docId;
+              // let docData = this.state.docData;
+              // docData.docId.title =  val.title;
+              if(val.title) {
+                this.setState({fileName: val.title});
+                // this.setState(docData);
+              }
 
               let newText = val.text;
               console.log(newText);
@@ -416,7 +450,6 @@ class Editor extends Component {
 
               that.setState({deltas: false});
           });
-          let usersRef = firestore.ref('users/');
         }
 
     }
@@ -450,8 +483,7 @@ class Editor extends Component {
       <Box bg="black" w="100%" p={4} color="white">
       <Flex bg="white" w="20%">
       </Flex>
-
-
+      <Stack>
         <Input
           value={this.state.title}
           onChange={this.handleTitleChange}
@@ -460,6 +492,16 @@ class Editor extends Component {
           width="100"
           bg="black"
         />
+        {(this.props.docId) ? <Input
+          value={this.state.fileName}
+          onChange={this.handleFileNameChange}
+          placeholder="Enter File Name here"
+          size="lg"
+          width="100"
+          bg="black"
+        /> : <div></div>}
+
+        </Stack>
         <Collaborators users={this.state.users} docId={this.props.docId} projectId={this.props.projectId}>
         <Stack spacing={1}>
         {this.state.collaborators.map((collaborator, key) => {
@@ -469,6 +511,11 @@ class Editor extends Component {
         })}
     </Stack>
         </ Collaborators>
+        <Button variantColor="teal" onClick={this.onNewFile}>New File</Button>
+        <Browser>
+          {this.state.docsData.map((doc) => (<FileLink link={`/editor/${this.props.projectId}/${doc.url}/`}>{doc.title.length !== 0 ? doc.title : doc.url}</FileLink>))}
+        </Browser>
+
         {
           ((this.props.docId) ? (<div>
         <AceEditor

@@ -20,14 +20,32 @@ import StarBorder from '@material-ui/icons/StarBorder';
 import Fab from '@material-ui/core/Fab';
 import AddIcon from '@material-ui/icons/Add';
 
+// import {navigate} from "@reach/router";
+
 import {
   Stack,
   Heading,
   Box,
   Text,
+  Button,
+  Spinner,
 } from "@chakra-ui/core";
 
-
+class LinkComponent extends Component {
+  onClick = async () => {
+    await navigate(this.props.url);
+  }
+  constructor(props) {
+    super(props);
+    this.onClick = this.onClick.bind(this);
+  }
+  render () {
+    return (
+      <Button onClick={this.onClick}>{this.props.text}</Button>
+      
+    )
+  }
+}
 const useStyles = makeStyles((theme) => ({
   margin: {
     margin: theme.spacing(1),
@@ -163,6 +181,7 @@ class Dashboard extends Component {
             // doc:
             projectNames: [],
             otherProjectNames: [],
+            loading: true,
 
 
         };
@@ -177,36 +196,49 @@ class Dashboard extends Component {
       let otherProjects = await getOtherProjects(uid);
       let projectNames = await getProjectNames (uid, projects, otherProjects);
       this.setState ({projectNames: projectNames.projectNames, otherProjectNames: projectNames.otherProjectNames});
+      this.setState({loading: false});
 
     }
 
     render() {
 
-  let arr = [];
+  let arr = [], otherArr = [];
   for (let l of this.state.projectNames) {
     let title = l[0], id = l[1];
     let url = `/editor/${id}`
     arr.push (
-      <ListItem><a href={url}>{title}</a></ListItem>
+      <LinkComponent url={url} text={title} />
     );
   }
   for (let l of this.state.otherProjectNames) {
     let title = l[0], id = l[1];
     let url = `/editor/${id}`
-    arr.push (
-      <ListItem><a href={url}>{title}</a></ListItem>
+    otherArr.push (
+      <LinkComponent url={url} text={title} />
     );
   }
 
     console.log(arr)
     return(
-      <div>
-        <Fab color="secondary" aria-label="add" onClick={this.handleNewFileCreation}>
-          <AddIcon label="Create New Project"/>
-        </Fab>
-      <Chip size='medium' label='Create New Project'/>
-      {arr}
-      </div>
+      (this.state.loading ? (<Stack isInline spacing={4}>
+      <Spinner size="xl" />
+    </Stack>) : (<div>
+      <Fab color="secondary" aria-label="add" onClick={this.handleNewFileCreation}>
+        <AddIcon label="Create New Project"/>
+      </Fab>
+    <Chip size='medium' label='Create New Project'/>
+    <Stack>
+    <Heading as="h3" size="lg">
+  My Projects
+</Heading >
+    {arr}
+    <Heading as="h3" size="lg">
+  Other Projects
+</Heading>
+{otherArr}
+    </Stack>
+    </div>))
+
     );
     }
   }
